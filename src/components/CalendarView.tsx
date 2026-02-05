@@ -36,11 +36,13 @@ function MonthGrid({
   entries,
   trackTypes,
   onDayClick,
+  onEntryClick,
 }: {
   monthStart: Date;
   entries: Entry[];
   trackTypes: TrackType[];
   onDayClick: (date: Date) => void;
+  onEntryClick?: (date: Date, entry: Entry) => void;
 }) {
   const monthEnd = endOfMonth(monthStart);
   const calendarStart = startOfWeek(monthStart);
@@ -71,6 +73,7 @@ function MonthGrid({
           entries={entries}
           trackTypes={trackTypes}
           onClick={onDayClick}
+          onEntryClick={onEntryClick}
         />
       ))}
     </div>
@@ -306,6 +309,12 @@ export function CalendarView({
     setEditingEntry(entry);
   };
 
+  const handleEntryClickFromPopup = (date: Date, entry: Entry) => {
+    setShowDayDetail(date);
+    setFormDate(new Date(entry.date + "T12:00:00"));
+    setEditingEntry(entry);
+  };
+
   return (
     <div className="space-y-4">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -367,6 +376,7 @@ export function CalendarView({
                 entries={entries}
                 trackTypes={trackTypes}
                 onDayClick={handleDayClick}
+                onEntryClick={handleEntryClickFromPopup}
               />
             </div>
           ))}
@@ -404,8 +414,14 @@ export function CalendarView({
           onSubmit={handleSubmit}
           onClose={() => {
             setFormDate(null);
+            setShowDayDetail(null);
             setEditingEntry(null);
           }}
+          onCancel={() => {
+            setFormDate(null);
+            setEditingEntry(null);
+          }}
+          onDelete={deleteEntry}
           editingEntry={editingEntry}
           addTrackType={addTrackType}
         />

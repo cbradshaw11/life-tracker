@@ -10,6 +10,7 @@ create table track_types (
   value_type text not null check (value_type in ('count', 'duration', 'boolean')),
   value_unit text,
   duration_unit text check (duration_unit in ('minutes', 'hours')),
+  metadata jsonb default '{}',
   created_at timestamptz default now()
 );
 
@@ -23,6 +24,7 @@ create table entries (
   track_type_id uuid references track_types(id) on delete cascade not null,
   value numeric,
   note text,
+  metadata jsonb default '{}',
   created_at timestamptz default now()
 );
 

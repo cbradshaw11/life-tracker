@@ -6,9 +6,8 @@ export function getValueInputLabel(trackType: TrackType): string {
     return `Duration (${unit})`;
   }
   if (trackType.valueType === "count") {
-    return trackType.valueUnit
-      ? `Count (${trackType.valueUnit})`
-      : "Count";
+    const unit = trackType.valueUnit ?? trackType.metadata?.unit;
+    return unit ? `Count (${unit})` : "Count";
   }
   return "Value";
 }
@@ -19,8 +18,9 @@ export function formatEntryValue(entry: Entry, trackType: TrackType): string | n
     const unit = trackType.durationUnit === "hours" ? "hr" : "min";
     return `${entry.value} ${unit}`;
   }
-  if (trackType.valueType === "count" && trackType.valueUnit) {
-    return `${entry.value} ${trackType.valueUnit}`;
+  if (trackType.valueType === "count") {
+    const unit = trackType.valueUnit ?? trackType.metadata?.unit;
+    if (unit) return `${entry.value} ${unit}`;
   }
   return `${entry.value}`;
 }

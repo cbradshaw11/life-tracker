@@ -50,7 +50,7 @@ export function AddTrackTypeModal({
       <div className="w-full max-w-md rounded-xl bg-white p-6 shadow-xl dark:bg-gray-800">
         <div className="mb-4 flex items-center justify-between">
           <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
-            Create activity type
+            Create Entry Type
           </h2>
           <button
             type="button"
@@ -89,29 +89,6 @@ export function AddTrackTypeModal({
             />
           </div>
 
-          {showUnitInput ? (
-            <div>
-              <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
-                Unit (optional)
-              </label>
-              <input
-                type="text"
-                value={newValueUnit}
-                onChange={(e) => setNewValueUnit(e.target.value)}
-                placeholder="e.g. cigarettes, glasses, reps"
-                className="w-full rounded-lg border border-gray-300 bg-white px-4 py-2 text-gray-900 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
-              />
-            </div>
-          ) : (
-            <button
-              type="button"
-              onClick={() => setShowUnitInput(true)}
-              className="text-sm text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300"
-            >
-              + Add optional unit
-            </button>
-          )}
-
           <div>
             <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
               Color
@@ -133,6 +110,24 @@ export function AddTrackTypeModal({
               ))}
             </div>
           </div>
+
+          {showUnitInput ? (
+            <input
+              type="text"
+              value={newValueUnit}
+              onChange={(e) => setNewValueUnit(e.target.value)}
+              placeholder="Unit (e.g. cigarettes, glasses)"
+              className="w-full rounded-lg border border-gray-300 bg-white px-4 py-2 text-gray-900 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+            />
+          ) : (
+            <button
+              type="button"
+              onClick={() => setShowUnitInput(true)}
+              className="text-sm text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300"
+            >
+              + Add optional unit
+            </button>
+          )}
 
           <div className="flex gap-2 pt-2">
             <button

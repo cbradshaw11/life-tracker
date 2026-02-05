@@ -4,6 +4,15 @@ import { Link } from "react-router-dom";
 import type { Entry, TrackType } from "../types";
 import { TrackTypeBadge } from "./TrackTypeBadge";
 
+const METADATA_KEY_OPTIONS = [
+  { value: "unit", label: "Unit" },
+  { value: "category", label: "Category" },
+  { value: "daily_goal", label: "Daily goal" },
+  { value: "intensity", label: "Intensity" },
+  { value: "location", label: "Location" },
+  { value: "__other__", label: "Other (custom)" },
+] as const;
+
 interface SettingsProps {
   trackTypes: TrackType[];
   entries: Entry[];
@@ -25,8 +34,8 @@ export function Settings({
   const [editingId, setEditingId] = useState<string | null>(null);
   const [newLabel, setNewLabel] = useState("");
   const [newColor, setNewColor] = useState("#3b82f6");
-  const [newValueUnit, setNewValueUnit] = useState("");
-  const [showUnitInput, setShowUnitInput] = useState(false);
+  const [metadataEntries, setMetadataEntries] = useState<Array<{ id: string; key: string; value: string }>>([]);
+  const [showMetadataInput, setShowMetadataInput] = useState(false);
 
   const today = new Date();
   const monthAgo = subMonths(today, 1);
@@ -66,14 +75,17 @@ export function Settings({
       color: newColor,
       valueType: "count",
     };
-    if (newValueUnit.trim()) {
-      trackType.valueUnit = newValueUnit.trim();
+    const meta = metadataEntries
+      .filter((e) => e.key.trim() && e.key !== "__other__")
+      .reduce((acc, e) => ({ ...acc, [e.key.trim()]: e.value }), {} as Record<string, string>);
+    if (Object.keys(meta).length > 0) {
+      trackType.metadata = meta;
     }
     await addTrackType(trackType);
     onTrackTypesChange();
     setNewLabel("");
-    setNewValueUnit("");
-    setShowUnitInput(false);
+    setMetadataEntries([]);
+    setShowMetadataInput(false);
     setShowAddForm(false);
   };
 
@@ -88,8 +100,16 @@ export function Settings({
     setEditingId(tt.id);
     setNewLabel(tt.label);
     setNewColor(tt.color);
-    setNewValueUnit(tt.valueUnit ?? "");
-    setShowUnitInput(!!tt.valueUnit);
+    setMetadataEntries(
+      tt.metadata
+        ? Object.entries(tt.metadata).map(([key, value]) => ({
+            id: `${key}-${Date.now()}`,
+            key,
+            value,
+          }))
+        : []
+    );
+    setShowMetadataInput(!!(tt.metadata && Object.keys(tt.metadata).length > 0));
     setShowAddForm(false);
   };
 
@@ -99,22 +119,37 @@ export function Settings({
       label: newLabel.trim(),
       color: newColor,
       valueType: "count",
-      valueUnit: newValueUnit.trim() || undefined,
       durationUnit: undefined,
+      metadata: metadataEntries
+        .filter((e) => e.key.trim() && e.key !== "__other__")
+        .reduce((acc, e) => ({ ...acc, [e.key.trim()]: e.value }), {} as Record<string, string>),
     };
     await updateTrackType(editingId, updates);
     onTrackTypesChange();
     setEditingId(null);
     setNewLabel("");
-    setNewValueUnit("");
+    setMetadataEntries([]);
   };
 
   const cancelEdit = () => {
     setEditingId(null);
     setNewLabel("");
     setNewColor("#3b82f6");
-    setNewValueUnit("");
-    setShowUnitInput(false);
+    setMetadataEntries([]);
+    setShowMetadataInput(false);
+  };
+
+  const addMetadataField = () => {
+    setMetadataEntries((prev) => [...prev, { id: `new-${Date.now()}`, key: "", value: "" }]);
+    setShowMetadataInput(true);
+  };
+  const updateMetadataEntry = (id: string, key: string, value: string) => {
+    setMetadataEntries((prev) =>
+      prev.map((e) => (e.id === id ? { ...e, key, value } : e))
+    );
+  };
+  const removeMetadataEntry = (id: string) => {
+    setMetadataEntries((prev) => prev.filter((e) => e.id !== id));
   };
 
   const handleExport = () => {
@@ -169,30 +204,16 @@ export function Settings({
             <div key={tt.id}>
               {editingId === tt.id ? (
                 <div className="rounded-lg border border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-800/50">
+                  <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                    Label
+                  </label>
                   <input
                     type="text"
                     value={newLabel}
                     onChange={(e) => setNewLabel(e.target.value)}
-                    placeholder="Label (e.g. Meditation)"
+                    placeholder="e.g. Meditation"
                     className="mb-3 w-full rounded-lg border border-gray-300 px-4 py-2 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
                   />
-                  {showUnitInput ? (
-                    <input
-                      type="text"
-                      value={newValueUnit}
-                      onChange={(e) => setNewValueUnit(e.target.value)}
-                      placeholder="Unit (e.g. cigarettes, glasses)"
-                      className="mb-3 w-full rounded-lg border border-gray-300 px-4 py-2 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
-                    />
-                  ) : (
-                    <button
-                      type="button"
-                      onClick={() => setShowUnitInput(true)}
-                      className="mb-3 text-sm text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300"
-                    >
-                      + Add optional unit
-                    </button>
-                  )}
                   <div className="mb-3 flex gap-2">
                     {COLORS.map((c) => (
                       <button
@@ -209,6 +230,94 @@ export function Settings({
                       />
                     ))}
                   </div>
+                  {showMetadataInput ? (
+                    <div className="mb-3 space-y-2">
+                      {metadataEntries.map((e) => {
+                      const presetMatch = METADATA_KEY_OPTIONS.find((o) => o.value !== "__other__" && o.value === e.key);
+                      const selectValue = presetMatch ? e.key : (e.key ? "__other__" : "");
+                      const showCustomKeyInput = selectValue === "__other__";
+                      return (
+                        <div key={e.id} className="flex flex-col gap-2">
+                          <div className="flex gap-2">
+                            <select
+                              value={selectValue}
+                              onChange={(ev) => {
+                                const v = ev.target.value;
+                                updateMetadataEntry(e.id, v === "__other__" ? "__other__" : v, e.value);
+                              }}
+                              className="flex-1 rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+                            >
+                              <option value="">Select key...</option>
+                              {METADATA_KEY_OPTIONS.map((o) => (
+                                <option key={o.value} value={o.value}>
+                                  {o.label}
+                                </option>
+                              ))}
+                            </select>
+                            {!showCustomKeyInput && (
+                              <input
+                                type="text"
+                                value={e.value}
+                                onChange={(ev) =>
+                                  updateMetadataEntry(e.id, e.key, ev.target.value)
+                                }
+                                placeholder="Value"
+                                className="flex-1 rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+                              />
+                            )}
+                            <button
+                              type="button"
+                              onClick={() => removeMetadataEntry(e.id)}
+                              className="rounded p-2 text-gray-500 hover:bg-gray-200 dark:hover:bg-gray-600"
+                              aria-label="Remove"
+                            >
+                              <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                              </svg>
+                            </button>
+                          </div>
+                          {showCustomKeyInput && (
+                            <div className="flex gap-2">
+                              <input
+                                type="text"
+                                value={e.key === "__other__" ? "" : e.key}
+                                onChange={(ev) =>
+                                  updateMetadataEntry(e.id, ev.target.value || "__other__", e.value)
+                                }
+                                placeholder="Custom key"
+                                className="flex-1 rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+                              />
+                              <input
+                                type="text"
+                                value={e.value}
+                                onChange={(ev) =>
+                                  updateMetadataEntry(e.id, e.key, ev.target.value)
+                                }
+                                placeholder="Value"
+                                className="flex-1 rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+                              />
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                      <button
+                        type="button"
+                        onClick={addMetadataField}
+                        className="text-sm text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300"
+                      >
+                        + Add another metadata field
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={addMetadataField}
+                      className="mb-3 text-sm text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300"
+                    >
+                      + Add optional metadata
+                    </button>
+                  )}
                   <div className="flex gap-2">
                     <button
                       type="button"
@@ -265,30 +374,19 @@ export function Settings({
 
         {showAddForm && !editingId ? (
           <div className="mt-4 rounded-lg border border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-800/50">
+            <h3 className="mb-3 text-sm font-semibold text-gray-900 dark:text-white">
+              Create Entry Type
+            </h3>
+            <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
+              Label
+            </label>
             <input
               type="text"
               value={newLabel}
               onChange={(e) => setNewLabel(e.target.value)}
-              placeholder="Label (e.g. Meditation)"
+              placeholder="e.g. Meditation"
               className="mb-3 w-full rounded-lg border border-gray-300 px-4 py-2 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
             />
-            {showUnitInput ? (
-              <input
-                type="text"
-                value={newValueUnit}
-                onChange={(e) => setNewValueUnit(e.target.value)}
-                placeholder="Unit (e.g. cigarettes, glasses)"
-                className="mb-3 w-full rounded-lg border border-gray-300 px-4 py-2 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
-              />
-            ) : (
-              <button
-                type="button"
-                onClick={() => setShowUnitInput(true)}
-                className="mb-3 text-sm text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300"
-              >
-                + Add optional unit
-              </button>
-            )}
             <div className="mb-3 flex gap-2">
               {COLORS.map((c) => (
                 <button
@@ -305,12 +403,101 @@ export function Settings({
                 />
               ))}
             </div>
+            {showMetadataInput ? (
+              <div className="mb-3 space-y-2">
+                {metadataEntries.map((e) => {
+                  const presetMatch = METADATA_KEY_OPTIONS.find((o) => o.value !== "__other__" && o.value === e.key);
+                  const selectValue = presetMatch ? e.key : (e.key ? "__other__" : "");
+                  const showCustomKeyInput = selectValue === "__other__";
+                  return (
+                    <div key={e.id} className="flex flex-col gap-2">
+                      <div className="flex gap-2">
+                        <select
+                          value={selectValue}
+                          onChange={(ev) => {
+                            const v = ev.target.value;
+                            updateMetadataEntry(e.id, v === "__other__" ? "__other__" : v, e.value);
+                          }}
+                          className="flex-1 rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+                        >
+                          <option value="">Select key...</option>
+                          {METADATA_KEY_OPTIONS.map((o) => (
+                            <option key={o.value} value={o.value}>
+                              {o.label}
+                            </option>
+                          ))}
+                        </select>
+                        {!showCustomKeyInput && (
+                          <input
+                            type="text"
+                            value={e.value}
+                            onChange={(ev) =>
+                              updateMetadataEntry(e.id, e.key, ev.target.value)
+                            }
+                            placeholder="Value"
+                            className="flex-1 rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+                          />
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => removeMetadataEntry(e.id)}
+                          className="rounded p-2 text-gray-500 hover:bg-gray-200 dark:hover:bg-gray-600"
+                          aria-label="Remove"
+                        >
+                          <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                          </svg>
+                        </button>
+                      </div>
+                      {showCustomKeyInput && (
+                        <div className="flex gap-2">
+                          <input
+                            type="text"
+                            value={e.key === "__other__" ? "" : e.key}
+                            onChange={(ev) =>
+                              updateMetadataEntry(e.id, ev.target.value || "__other__", e.value)
+                            }
+                            placeholder="Custom key"
+                            className="flex-1 rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+                          />
+                          <input
+                            type="text"
+                            value={e.value}
+                            onChange={(ev) =>
+                              updateMetadataEntry(e.id, e.key, ev.target.value)
+                            }
+                            placeholder="Value"
+                            className="flex-1 rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+                          />
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+                <button
+                  type="button"
+                  onClick={addMetadataField}
+                  className="text-sm text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300"
+                >
+                  + Add another metadata field
+                </button>
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={addMetadataField}
+                className="mb-3 text-sm text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300"
+              >
+                + Add optional metadata
+              </button>
+            )}
             <div className="flex gap-2">
               <button
                 type="button"
                 onClick={() => {
                   setShowAddForm(false);
-                  setShowUnitInput(false);
+                  setShowMetadataInput(false);
+                  setMetadataEntries([]);
                 }}
                 className="rounded-lg border border-gray-300 px-4 py-2 text-gray-700 dark:border-gray-600 dark:text-gray-300"
               >

@@ -10,6 +10,7 @@ interface DayCellProps {
   entries: Entry[];
   trackTypes: TrackType[];
   onClick: (date: Date) => void;
+  onEntryClick?: (date: Date, entry: Entry) => void;
 }
 
 const TOOLTIP_WIDTH = 240;
@@ -21,6 +22,7 @@ export function DayCell({
   entries,
   trackTypes,
   onClick,
+  onEntryClick,
 }: DayCellProps) {
   const [tooltip, setTooltip] = useState<{ x: number; y: number; placement: "above" | "below" } | null>(null);
   const hideTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -31,12 +33,9 @@ export function DayCell({
   const isToday =
     format(date, "yyyy-MM-dd") === format(new Date(), "yyyy-MM-dd");
 
-  const uniqueTrackTypeIds = [...new Set(dayEntries.map((e) => e.trackTypeId))];
-  const displayTrackTypes = uniqueTrackTypeIds
-    .map((id) => trackTypes.find((t) => t.id === id))
-    .filter(Boolean) as TrackType[];
-
   const getTrackType = (id: string) => trackTypes.find((t) => t.id === id);
+  const displayEntries = dayEntries.slice(0, 5);
+  const overflowCount = dayEntries.length - displayEntries.length;
 
   const handleMouseEnter = useCallback(
     (e: React.MouseEvent) => {
@@ -102,13 +101,15 @@ export function DayCell({
       >
         <span className="block text-sm font-medium">{format(date, "d")}</span>
         <div className="mt-1 flex flex-wrap gap-1">
-          {displayTrackTypes.slice(0, 3).map((tt) => (
-            <TrackTypeBadge key={tt.id} trackType={tt} size="sm" />
-          ))}
-          {displayTrackTypes.length > 3 && (
-            <span className="text-xs text-gray-500">
-              +{displayTrackTypes.length - 3}
-            </span>
+          {displayEntries.map((entry) => {
+            const trackType = getTrackType(entry.trackTypeId);
+            if (!trackType) return null;
+            return (
+              <TrackTypeBadge key={entry.id} trackType={trackType} size="sm" />
+            );
+          })}
+          {overflowCount > 0 && (
+            <span className="text-xs text-gray-500">+{overflowCount}</span>
           )}
         </div>
       </button>
@@ -149,12 +150,45 @@ export function DayCell({
                 return (
                   <li
                     key={entry.id}
-                    className="flex items-center gap-1.5 px-3 py-1 text-left"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setTooltip(null);
+                      onEntryClick?.(date, entry);
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        setTooltip(null);
+                        onEntryClick?.(date, entry);
+                      }
+                    }}
+                    role={onEntryClick ? "button" : undefined}
+                    tabIndex={onEntryClick ? 0 : undefined}
+                    className={`flex flex-col gap-0.5 px-3 py-1.5 text-left ${
+                      onEntryClick
+                        ? "cursor-pointer rounded hover:bg-gray-100 dark:hover:bg-gray-700"
+                        : ""
+                    }`}
                   >
-                    <TrackTypeBadge trackType={trackType} size="sm" />
-                    <span className="text-sm text-gray-700 dark:text-gray-300">
-                      {trackType.label}
-                    </span>
+                    <div className="flex items-center gap-1.5">
+                      <TrackTypeBadge trackType={trackType} size="sm" />
+                      <span className="text-sm text-gray-700 dark:text-gray-300">
+                        {trackType.label}
+                      </span>
+                    </div>
+                    {entry.metadata && Object.keys(entry.metadata).length > 0 && (
+                      <div className="ml-3.5 flex flex-wrap gap-x-2 gap-y-0 text-xs text-gray-500 dark:text-gray-400">
+                        {Object.entries(entry.metadata).map(
+                          ([k, v]) =>
+                            v && (
+                              <span key={k}>
+                                {k.replace(/_/g, " ")}: {v}
+                              </span>
+                            )
+                        )}
+                      </div>
+                    )}
                   </li>
                 );
               })}

@@ -24,6 +24,7 @@ create table track_types (
   value_type text not null check (value_type in ('count', 'duration', 'boolean')),
   value_unit text,
   duration_unit text check (duration_unit in ('minutes', 'hours')),
+  metadata jsonb default '{}',
   created_at timestamptz default now()
 );
 

@@ -143,7 +143,7 @@ export function YearView({ entries, trackTypes, onMonthClick }: YearViewProps) {
           {Array.from({ length: (4 - (months.length % 4)) % 4 }).map((_, i) => (
             <div key={`spacer-${i}`} aria-hidden="true" />
           ))}
-          {months.map((m, i) => (
+          {months.map((m) => (
             <button
               key={m.monthStr}
               type="button"
