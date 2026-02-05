@@ -1,11 +1,9 @@
-import { useSearchParams } from "react-router-dom";
-import { Link, Routes, Route } from "react-router-dom";
+import { useSearchParams, Link, Routes, Route, Navigate } from "react-router-dom";
 import { useAuth } from "./contexts/AuthContext";
 import { useEntries } from "./hooks/useEntries";
 import { useTrackTypes } from "./hooks/useTrackTypes";
 import { ActivitiesView } from "./components/ActivitiesView";
-import { CalendarView } from "./components/CalendarView";
-import { YearView } from "./components/YearView";
+import { CalendarTab } from "./components/CalendarTab";
 import { Settings } from "./components/Settings";
 import { LoginPage } from "./components/LoginPage";
 
@@ -68,12 +66,6 @@ function App() {
               Calendar
             </Link>
             <Link
-              to="/year"
-              className="rounded-lg px-4 py-2 text-gray-600 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-white"
-            >
-              Year
-            </Link>
-            <Link
               to="/activities"
               className="rounded-lg px-4 py-2 text-gray-600 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-white"
             >
@@ -101,7 +93,7 @@ function App() {
           <Route
             path="/"
             element={
-              <CalendarView
+              <CalendarTab
                 entries={entries}
                 trackTypes={trackTypes}
                 addEntry={addEntry}
@@ -112,16 +104,11 @@ function App() {
               />
             }
           />
+          <Route path="/year" element={<Navigate to="/" replace />} />
           <Route
             path="/activities"
             element={
               <ActivitiesView trackTypes={trackTypes} entries={entries} />
-            }
-          />
-          <Route
-            path="/year"
-            element={
-              <YearView entries={entries} trackTypes={trackTypes} />
             }
           />
           <Route

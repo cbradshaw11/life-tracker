@@ -1,5 +1,4 @@
 import { useState, useRef, useCallback, useEffect } from "react";
-import { createPortal } from "react-dom";
 import { format, startOfMonth, isSameMonth, subMonths } from "date-fns";
 import { useNavigate } from "react-router-dom";
 import type { Entry, TrackType } from "../types";
@@ -11,24 +10,11 @@ const MAX_YEARS_BACK = 100;
 interface YearViewProps {
   entries: Entry[];
   trackTypes: TrackType[];
+  onMonthClick?: (monthDate: Date) => void;
 }
 
-interface TooltipState {
-  monthIndex: number;
-  trackType: TrackType;
-  dates: string[];
-  x: number;
-  y: number;
-  placement: "above" | "below";
-}
-
-const TOOLTIP_WIDTH = 260;
-const TOOLTIP_OFFSET = 8;
-
-export function YearView({ entries, trackTypes }: YearViewProps) {
+export function YearView({ entries, trackTypes, onMonthClick }: YearViewProps) {
   const navigate = useNavigate();
-  const [tooltip, setTooltip] = useState<TooltipState | null>(null);
-  const hideTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   const now = new Date();
@@ -124,64 +110,14 @@ export function YearView({ entries, trackTypes }: YearViewProps) {
   }, [canLoadMore, loadMoreOlder]);
 
   const handleMonthClick = (monthDate: Date) => {
-    navigate(
-      `/?year=${monthDate.getFullYear()}&month=${monthDate.getMonth() + 1}`
-    );
-  };
-
-  const handleBadgeMouseEnter = (
-    e: React.MouseEvent,
-    monthIndex: number,
-    trackType: TrackType,
-    dates: string[]
-  ) => {
-    if (hideTimeoutRef.current) {
-      clearTimeout(hideTimeoutRef.current);
-      hideTimeoutRef.current = null;
+    if (onMonthClick) {
+      onMonthClick(monthDate);
+    } else {
+      navigate(
+        `/?year=${monthDate.getFullYear()}&month=${monthDate.getMonth() + 1}`
+      );
     }
-    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
-    const viewportHeight = window.innerHeight;
-    const estimatedTooltipHeight = 320;
-    const spaceBelow = viewportHeight - rect.bottom;
-    const spaceAbove = rect.top;
-    const placement =
-      spaceBelow >= estimatedTooltipHeight || spaceBelow >= spaceAbove
-        ? "below"
-        : "above";
-
-    const x = Math.max(
-      TOOLTIP_WIDTH / 2,
-      Math.min(rect.left + rect.width / 2, window.innerWidth - TOOLTIP_WIDTH / 2)
-    );
-    const y =
-      placement === "below"
-        ? rect.bottom + TOOLTIP_OFFSET
-        : rect.top - TOOLTIP_OFFSET;
-
-    setTooltip({
-      monthIndex,
-      trackType,
-      dates,
-      x,
-      y,
-      placement,
-    });
   };
-
-  const handleBadgeMouseLeave = useCallback(() => {
-    hideTimeoutRef.current = setTimeout(() => setTooltip(null), 100);
-  }, []);
-
-  const handleTooltipMouseEnter = useCallback(() => {
-    if (hideTimeoutRef.current) {
-      clearTimeout(hideTimeoutRef.current);
-      hideTimeoutRef.current = null;
-    }
-  }, []);
-
-  const handleTooltipMouseLeave = useCallback(() => {
-    setTooltip(null);
-  }, []);
 
   return (
     <div className="space-y-6">
@@ -204,12 +140,15 @@ export function YearView({ entries, trackTypes }: YearViewProps) {
           </div>
         )}
         <div className="grid grid-cols-2 gap-4 overflow-visible pb-4 sm:grid-cols-3 md:grid-cols-4">
+          {Array.from({ length: (4 - (months.length % 4)) % 4 }).map((_, i) => (
+            <div key={`spacer-${i}`} aria-hidden="true" />
+          ))}
           {months.map((m, i) => (
             <button
               key={m.monthStr}
               type="button"
               onClick={() => handleMonthClick(m.monthDate)}
-            className="flex min-h-[100px] flex-col overflow-visible rounded-xl border border-gray-200 p-4 text-left transition-all hover:border-blue-300 hover:shadow-md dark:border-gray-700 dark:hover:border-blue-600"
+            className="flex min-h-[140px] flex-col overflow-visible rounded-xl border border-gray-200 p-4 text-left transition-all hover:border-blue-300 hover:shadow-md dark:border-gray-700 dark:hover:border-blue-600"
           >
             <div className="flex items-center justify-between">
               <span className="text-sm font-semibold text-gray-900 dark:text-white">
@@ -221,70 +160,20 @@ export function YearView({ entries, trackTypes }: YearViewProps) {
                 </span>
               )}
             </div>
-            <div className="mt-2 flex min-h-[48px] flex-wrap content-start gap-2 overflow-visible">
-              {trackTypes.map((tt) => {
-                const count = m.activityByTrackType[tt.id] ?? 0;
-                const dates = m.activityDatesByTrackType[tt.id] ?? [];
-                if (count === 0) return null;
-                return (
-                  <span
-                    key={tt.id}
-                    className="relative inline-flex"
-                    onMouseEnter={(e) =>
-                      handleBadgeMouseEnter(e, i, tt, dates)
-                    }
-                    onMouseLeave={handleBadgeMouseLeave}
-                  >
-                    <span
-                      className="inline-flex cursor-default items-center gap-1 rounded px-2 py-0.5 text-xs"
-                      style={{
-                        backgroundColor: `${tt.color}20`,
-                        color: tt.color,
-                      }}
-                    >
-                      <span
-                        className="h-1.5 w-1.5 rounded-full"
-                        style={{ backgroundColor: tt.color }}
-                      />
-                      {count}
-                    </span>
-                  </span>
-                );
-              })}
+            <div className="mt-2 flex justify-center">
+              <MiniCalendar
+                monthDate={m.monthDate}
+                highlightedDates={new Set(
+                  Object.values(m.activityDatesByTrackType).flat()
+                )}
+                highlightColor="#3b82f6"
+                compact
+              />
             </div>
           </button>
         ))}
         </div>
       </div>
-
-      {tooltip &&
-        createPortal(
-          <div
-            className="fixed z-50 rounded-lg border border-gray-200 bg-white p-3 text-left text-xs shadow-lg dark:border-gray-600 dark:bg-gray-800"
-            style={{
-              left: tooltip.x,
-              transform: "translate(-50%, 0)",
-              ...(tooltip.placement === "below"
-                ? { top: tooltip.y }
-                : { bottom: window.innerHeight - tooltip.y }),
-            }}
-            onMouseEnter={handleTooltipMouseEnter}
-            onMouseLeave={handleTooltipMouseLeave}
-          >
-            <div className="font-semibold text-gray-900 dark:text-white">
-              {format(months[tooltip.monthIndex].monthDate, "MMMM yyyy")} ·{" "}
-              {tooltip.trackType.label}
-            </div>
-            <div className="mt-2 flex justify-center">
-              <MiniCalendar
-                monthDate={months[tooltip.monthIndex].monthDate}
-                highlightedDates={new Set(tooltip.dates)}
-                highlightColor={tooltip.trackType.color}
-              />
-            </div>
-          </div>,
-          document.body
-        )}
     </div>
   );
 }

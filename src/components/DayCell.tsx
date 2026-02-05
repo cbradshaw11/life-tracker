@@ -91,7 +91,10 @@ export function DayCell({
         onClick={() => onClick(date)}
         onMouseEnter={handleMouseEnter}
         onMouseLeave={handleMouseLeave}
+        data-today={isToday ? "true" : undefined}
         className={`min-h-[60px] w-full rounded-lg border p-1.5 text-left transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1 sm:min-h-[80px] sm:p-2 ${
+          isToday ? "scroll-mb-16" : ""
+        } ${
           isCurrentMonth
             ? "border-gray-200 bg-white text-gray-900 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-white dark:hover:bg-gray-700"
             : "border-gray-100 bg-gray-50 text-gray-400 dark:border-gray-800 dark:bg-gray-900 dark:text-gray-500"
