@@ -116,7 +116,7 @@ export function DayCell({
       {tooltip &&
         createPortal(
           <div
-            className="fixed z-50 w-[240px] rounded-lg border border-gray-200 bg-white py-2 shadow-lg dark:border-gray-600 dark:bg-gray-800"
+            className="fixed z-50 w-[240px] cursor-pointer rounded-lg border-2 border-gray-200 bg-white py-2 shadow-lg transition-colors hover:border-blue-500 dark:border-gray-600 dark:bg-gray-800 dark:hover:border-blue-400"
             style={{
               left: tooltip.x,
               top: tooltip.y,
@@ -124,7 +124,20 @@ export function DayCell({
             }}
             onMouseEnter={handleTooltipMouseEnter}
             onMouseLeave={handleTooltipMouseLeave}
-            role="tooltip"
+            onClick={() => {
+              setTooltip(null);
+              onClick(date);
+            }}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                setTooltip(null);
+                onClick(date);
+              }
+            }}
+            role="button"
+            tabIndex={0}
+            aria-label={`View entries for ${format(date, "EEEE, MMM d")}`}
           >
             <div className="mb-2 px-3 text-xs font-medium text-gray-500 dark:text-gray-400">
               {format(date, "EEEE, MMM d")}

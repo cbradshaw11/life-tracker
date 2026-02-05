@@ -2,13 +2,13 @@ import { useSearchParams, Link, Routes, Route, Navigate } from "react-router-dom
 import { useAuth } from "./contexts/AuthContext";
 import { useEntries } from "./hooks/useEntries";
 import { useTrackTypes } from "./hooks/useTrackTypes";
-import { ActivitiesView } from "./components/ActivitiesView";
 import { CalendarTab } from "./components/CalendarTab";
+import { Profile } from "./components/Profile";
 import { Settings } from "./components/Settings";
 import { LoginPage } from "./components/LoginPage";
 
 function App() {
-  const { user, loading: authLoading, signIn, signUp, signOut } = useAuth();
+  const { user, loading: authLoading, signIn, signUp } = useAuth();
   const { entries, addEntry, updateEntry, deleteEntry } = useEntries();
   const {
     trackTypes,
@@ -66,24 +66,17 @@ function App() {
               Calendar
             </Link>
             <Link
-              to="/activities"
-              className="rounded-lg px-4 py-2 text-gray-600 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-white"
-            >
-              Activities
-            </Link>
-            <Link
               to="/settings"
               className="rounded-lg px-4 py-2 text-gray-600 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-white"
             >
-              Settings
+              Entry Types
             </Link>
-            <button
-              type="button"
-              onClick={() => signOut()}
+            <Link
+              to="/profile"
               className="rounded-lg px-4 py-2 text-gray-600 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-white"
             >
-              Sign out
-            </button>
+              Profile
+            </Link>
           </div>
         </div>
       </nav>
@@ -105,12 +98,7 @@ function App() {
             }
           />
           <Route path="/year" element={<Navigate to="/" replace />} />
-          <Route
-            path="/activities"
-            element={
-              <ActivitiesView trackTypes={trackTypes} entries={entries} />
-            }
-          />
+          <Route path="/activities" element={<Navigate to="/settings" replace />} />
           <Route
             path="/settings"
             element={
@@ -124,6 +112,7 @@ function App() {
               />
             }
           />
+          <Route path="/profile" element={<Profile />} />
         </Routes>
       </main>
     </div>

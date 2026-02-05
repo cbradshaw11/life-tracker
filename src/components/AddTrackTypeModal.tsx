@@ -24,10 +24,9 @@ export function AddTrackTypeModal({
   onClose,
 }: AddTrackTypeModalProps) {
   const [newLabel, setNewLabel] = useState("");
-  const [newValueType, setNewValueType] = useState<TrackType["valueType"]>("count");
-  const [newColor, setNewColor] = useState("#3b82f6");
   const [newValueUnit, setNewValueUnit] = useState("");
-  const [newDurationUnit, setNewDurationUnit] = useState<"minutes" | "hours">("minutes");
+  const [showUnitInput, setShowUnitInput] = useState(false);
+  const [newColor, setNewColor] = useState("#3b82f6");
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -37,13 +36,10 @@ export function AddTrackTypeModal({
       id,
       label: newLabel.trim(),
       color: newColor,
-      valueType: newValueType,
+      valueType: "count",
     };
-    if (newValueType === "count" && newValueUnit.trim()) {
+    if (newValueUnit.trim()) {
       trackType.valueUnit = newValueUnit.trim();
-    }
-    if (newValueType === "duration") {
-      trackType.durationUnit = newDurationUnit;
     }
     onAdd(trackType);
     onClose();
@@ -93,24 +89,7 @@ export function AddTrackTypeModal({
             />
           </div>
 
-          <div>
-            <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
-              Value type
-            </label>
-            <select
-              value={newValueType}
-              onChange={(e) =>
-                setNewValueType(e.target.value as TrackType["valueType"])
-              }
-              className="w-full rounded-lg border border-gray-300 bg-white px-4 py-2 text-gray-900 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
-            >
-              <option value="count">Count</option>
-              <option value="duration">Duration</option>
-              <option value="boolean">Yes/No</option>
-            </select>
-          </div>
-
-          {newValueType === "count" && (
+          {showUnitInput ? (
             <div>
               <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
                 Unit (optional)
@@ -123,24 +102,14 @@ export function AddTrackTypeModal({
                 className="w-full rounded-lg border border-gray-300 bg-white px-4 py-2 text-gray-900 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
               />
             </div>
-          )}
-
-          {newValueType === "duration" && (
-            <div>
-              <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
-                Duration unit
-              </label>
-              <select
-                value={newDurationUnit}
-                onChange={(e) =>
-                  setNewDurationUnit(e.target.value as "minutes" | "hours")
-                }
-                className="w-full rounded-lg border border-gray-300 bg-white px-4 py-2 text-gray-900 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
-              >
-                <option value="minutes">Minutes</option>
-                <option value="hours">Hours</option>
-              </select>
-            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setShowUnitInput(true)}
+              className="text-sm text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300"
+            >
+              + Add optional unit
+            </button>
           )}
 
           <div>
@@ -155,7 +124,7 @@ export function AddTrackTypeModal({
                   onClick={() => setNewColor(c)}
                   className={`h-8 w-8 rounded-full border-2 transition-all ${
                     newColor === c
-                      ? "border-gray-900 ring-4 ring-offset-2 ring-gray-900 dark:border-white dark:ring-white"
+                      ? "border-gray-900 ring-1 ring-offset-0 ring-gray-900 dark:border-white dark:ring-white"
                       : "border-transparent"
                   }`}
                   style={{ backgroundColor: c }}

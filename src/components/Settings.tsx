@@ -1,4 +1,6 @@
 import { useState } from "react";
+import { subMonths, subYears } from "date-fns";
+import { Link } from "react-router-dom";
 import type { Entry, TrackType } from "../types";
 import { TrackTypeBadge } from "./TrackTypeBadge";
 
@@ -22,10 +24,27 @@ export function Settings({
   const [showAddForm, setShowAddForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [newLabel, setNewLabel] = useState("");
-  const [newValueType, setNewValueType] = useState<TrackType["valueType"]>("count");
   const [newColor, setNewColor] = useState("#3b82f6");
   const [newValueUnit, setNewValueUnit] = useState("");
-  const [newDurationUnit, setNewDurationUnit] = useState<"minutes" | "hours">("minutes");
+  const [showUnitInput, setShowUnitInput] = useState(false);
+
+  const today = new Date();
+  const monthAgo = subMonths(today, 1);
+  const yearAgo = subYears(today, 1);
+  const monthAgoStr = monthAgo.toISOString().slice(0, 10);
+  const yearAgoStr = yearAgo.toISOString().slice(0, 10);
+  const entriesPastMonth = entries.filter((e) => e.date >= monthAgoStr);
+  const entriesPastYear = entries.filter((e) => e.date >= yearAgoStr);
+  const countByType = (entryList: Entry[]): Record<string, number> =>
+    trackTypes.reduce(
+      (acc, tt) => {
+        acc[tt.id] = entryList.filter((e) => e.trackTypeId === tt.id).length;
+        return acc;
+      },
+      {} as Record<string, number>
+    );
+  const countPastMonth = countByType(entriesPastMonth);
+  const countPastYear = countByType(entriesPastYear);
 
   const COLORS = [
     "#ef4444",
@@ -45,18 +64,16 @@ export function Settings({
       id,
       label: newLabel.trim(),
       color: newColor,
-      valueType: newValueType,
+      valueType: "count",
     };
-    if (newValueType === "count" && newValueUnit.trim()) {
+    if (newValueUnit.trim()) {
       trackType.valueUnit = newValueUnit.trim();
-    }
-    if (newValueType === "duration") {
-      trackType.durationUnit = newDurationUnit;
     }
     await addTrackType(trackType);
     onTrackTypesChange();
     setNewLabel("");
     setNewValueUnit("");
+    setShowUnitInput(false);
     setShowAddForm(false);
   };
 
@@ -70,10 +87,9 @@ export function Settings({
   const handleEdit = (tt: TrackType) => {
     setEditingId(tt.id);
     setNewLabel(tt.label);
-    setNewValueType(tt.valueType);
     setNewColor(tt.color);
     setNewValueUnit(tt.valueUnit ?? "");
-    setNewDurationUnit(tt.durationUnit ?? "minutes");
+    setShowUnitInput(!!tt.valueUnit);
     setShowAddForm(false);
   };
 
@@ -82,18 +98,10 @@ export function Settings({
     const updates: Partial<TrackType> = {
       label: newLabel.trim(),
       color: newColor,
-      valueType: newValueType,
+      valueType: "count",
+      valueUnit: newValueUnit.trim() || undefined,
+      durationUnit: undefined,
     };
-    if (newValueType === "count") {
-      updates.valueUnit = newValueUnit.trim() || undefined;
-      updates.durationUnit = undefined;
-    } else if (newValueType === "duration") {
-      updates.durationUnit = newDurationUnit;
-      updates.valueUnit = undefined;
-    } else {
-      updates.valueUnit = undefined;
-      updates.durationUnit = undefined;
-    }
     await updateTrackType(editingId, updates);
     onTrackTypesChange();
     setEditingId(null);
@@ -104,10 +112,9 @@ export function Settings({
   const cancelEdit = () => {
     setEditingId(null);
     setNewLabel("");
-    setNewValueType("count");
     setNewColor("#3b82f6");
     setNewValueUnit("");
-    setNewDurationUnit("minutes");
+    setShowUnitInput(false);
   };
 
   const handleExport = () => {
@@ -129,14 +136,34 @@ export function Settings({
 
   return (
     <div className="space-y-8">
-      <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
-        Settings
-      </h1>
+      <div>
+        <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
+          Entry Types
+        </h1>
+        <p className="mt-1 text-gray-600 dark:text-gray-400">
+          Your entry types and their usage
+        </p>
+      </div>
 
       <section>
         <h2 className="mb-4 text-lg font-semibold text-gray-800 dark:text-gray-200">
-          Track Types
+          Entry Types
         </h2>
+        {trackTypes.length === 0 ? (
+          <div className="rounded-xl border border-dashed border-gray-300 px-6 py-12 text-center dark:border-gray-700">
+            <p className="text-gray-600 dark:text-gray-400">
+              No entry types yet. Create one below or add your first entry from the calendar.
+            </p>
+            <div className="mt-4 flex justify-center gap-2">
+              <Link
+                to="/"
+                className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
+              >
+                Go to Calendar
+              </Link>
+            </div>
+          </div>
+        ) : null}
         <div className="space-y-3">
           {trackTypes.map((tt) => (
             <div key={tt.id}>
@@ -149,37 +176,22 @@ export function Settings({
                     placeholder="Label (e.g. Meditation)"
                     className="mb-3 w-full rounded-lg border border-gray-300 px-4 py-2 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
                   />
-                  <select
-                    value={newValueType}
-                    onChange={(e) =>
-                      setNewValueType(e.target.value as TrackType["valueType"])
-                    }
-                    className="mb-3 w-full rounded-lg border border-gray-300 px-4 py-2 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
-                  >
-                    <option value="count">Count</option>
-                    <option value="duration">Duration</option>
-                    <option value="boolean">Yes/No</option>
-                  </select>
-                  {newValueType === "count" && (
+                  {showUnitInput ? (
                     <input
                       type="text"
                       value={newValueUnit}
                       onChange={(e) => setNewValueUnit(e.target.value)}
-                      placeholder="Unit (optional, e.g. cigarettes, glasses)"
+                      placeholder="Unit (e.g. cigarettes, glasses)"
                       className="mb-3 w-full rounded-lg border border-gray-300 px-4 py-2 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
                     />
-                  )}
-                  {newValueType === "duration" && (
-                    <select
-                      value={newDurationUnit}
-                      onChange={(e) =>
-                        setNewDurationUnit(e.target.value as "minutes" | "hours")
-                      }
-                      className="mb-3 w-full rounded-lg border border-gray-300 px-4 py-2 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => setShowUnitInput(true)}
+                      className="mb-3 text-sm text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300"
                     >
-                      <option value="minutes">Minutes</option>
-                      <option value="hours">Hours</option>
-                    </select>
+                      + Add optional unit
+                    </button>
                   )}
                   <div className="mb-3 flex gap-2">
                     {COLORS.map((c) => (
@@ -189,7 +201,7 @@ export function Settings({
                         onClick={() => setNewColor(c)}
                         className={`h-8 w-8 rounded-full border-2 transition-all ${
                           newColor === c
-                            ? "border-gray-900 ring-4 ring-offset-2 ring-gray-900 dark:border-white dark:ring-white"
+                            ? "border-gray-900 ring-1 ring-offset-0 ring-gray-900 dark:border-white dark:ring-white"
                             : "border-transparent"
                         }`}
                         style={{ backgroundColor: c }}
@@ -217,7 +229,17 @@ export function Settings({
                 </div>
               ) : (
                 <div className="flex items-center justify-between rounded-lg border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-800">
-                  <TrackTypeBadge trackType={tt} showLabel />
+                  <div className="flex flex-col gap-1">
+                    <TrackTypeBadge trackType={tt} showLabel size="md" />
+                    <div className="flex gap-4 text-sm font-normal text-gray-600 dark:text-gray-400">
+                      <span>
+                        {countPastMonth[tt.id] ?? 0} {(countPastMonth[tt.id] ?? 0) === 1 ? "entry" : "entries"} past month
+                      </span>
+                      <span>
+                        {countPastYear[tt.id] ?? 0} {(countPastYear[tt.id] ?? 0) === 1 ? "entry" : "entries"} past year
+                      </span>
+                    </div>
+                  </div>
                   <div className="flex gap-2">
                     <button
                       type="button"
@@ -250,37 +272,22 @@ export function Settings({
               placeholder="Label (e.g. Meditation)"
               className="mb-3 w-full rounded-lg border border-gray-300 px-4 py-2 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
             />
-            <select
-              value={newValueType}
-              onChange={(e) =>
-                setNewValueType(e.target.value as TrackType["valueType"])
-              }
-              className="mb-3 w-full rounded-lg border border-gray-300 px-4 py-2 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
-            >
-              <option value="count">Count</option>
-              <option value="duration">Duration</option>
-              <option value="boolean">Yes/No</option>
-            </select>
-            {newValueType === "count" && (
+            {showUnitInput ? (
               <input
                 type="text"
                 value={newValueUnit}
                 onChange={(e) => setNewValueUnit(e.target.value)}
-                placeholder="Unit (optional, e.g. cigarettes, glasses)"
+                placeholder="Unit (e.g. cigarettes, glasses)"
                 className="mb-3 w-full rounded-lg border border-gray-300 px-4 py-2 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
               />
-            )}
-            {newValueType === "duration" && (
-              <select
-                value={newDurationUnit}
-                onChange={(e) =>
-                  setNewDurationUnit(e.target.value as "minutes" | "hours")
-                }
-                className="mb-3 w-full rounded-lg border border-gray-300 px-4 py-2 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+            ) : (
+              <button
+                type="button"
+                onClick={() => setShowUnitInput(true)}
+                className="mb-3 text-sm text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300"
               >
-                <option value="minutes">Minutes</option>
-                <option value="hours">Hours</option>
-              </select>
+                + Add optional unit
+              </button>
             )}
             <div className="mb-3 flex gap-2">
               {COLORS.map((c) => (
@@ -290,7 +297,7 @@ export function Settings({
                   onClick={() => setNewColor(c)}
                   className={`h-8 w-8 rounded-full border-2 transition-all ${
                     newColor === c
-                      ? "border-gray-900 ring-4 ring-offset-2 ring-gray-900 dark:border-white dark:ring-white"
+                      ? "border-gray-900 ring-1 ring-offset-0 ring-gray-900 dark:border-white dark:ring-white"
                       : "border-transparent"
                   }`}
                   style={{ backgroundColor: c }}
@@ -301,7 +308,10 @@ export function Settings({
             <div className="flex gap-2">
               <button
                 type="button"
-                onClick={() => setShowAddForm(false)}
+                onClick={() => {
+                  setShowAddForm(false);
+                  setShowUnitInput(false);
+                }}
                 className="rounded-lg border border-gray-300 px-4 py-2 text-gray-700 dark:border-gray-600 dark:text-gray-300"
               >
                 Cancel
@@ -328,7 +338,7 @@ export function Settings({
             <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
             </svg>
-            Add track type
+            Add entry type
           </button>
         )}
       </section>

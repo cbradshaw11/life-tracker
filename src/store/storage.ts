@@ -1,12 +1,6 @@
 import type { Entry, TrackType } from "../types";
 import { supabase } from "../lib/supabase";
 
-const DEFAULT_TRACK_TYPES: Omit<TrackType, "id">[] = [
-  { label: "Smoking", color: "#ef4444", valueType: "count", valueUnit: "cigarettes" },
-  { label: "Workout", color: "#22c55e", valueType: "duration", durationUnit: "minutes" },
-  { label: "Drinking", color: "#3b82f6", valueType: "count", valueUnit: "drinks" },
-];
-
 function mapDbTrackType(row: {
   id: string;
   label: string;
@@ -39,23 +33,6 @@ function mapDbEntry(row: {
     value: row.value ?? undefined,
     note: row.note ?? undefined,
   };
-}
-
-async function seedDefaultTrackTypes(userId: string): Promise<TrackType[]> {
-  const inserts = DEFAULT_TRACK_TYPES.map((tt) => ({
-    user_id: userId,
-    label: tt.label,
-    color: tt.color,
-    value_type: tt.valueType,
-    value_unit: tt.valueUnit ?? null,
-    duration_unit: tt.durationUnit ?? null,
-  }));
-  const { data, error } = await supabase
-    .from("track_types")
-    .insert(inserts)
-    .select("id, label, color, value_type, value_unit, duration_unit");
-  if (error) throw error;
-  return (data ?? []).map(mapDbTrackType);
 }
 
 export async function getEntries(userId: string): Promise<Entry[]> {
@@ -118,6 +95,8 @@ export async function deleteEntry(userId: string, id: string): Promise<boolean> 
   return !error;
 }
 
+const LEGACY_DEFAULT_LABELS = ["Smoking", "Workout", "Drinking"];
+
 export async function getTrackTypes(userId: string): Promise<TrackType[]> {
   const { data, error } = await supabase
     .from("track_types")
@@ -125,9 +104,22 @@ export async function getTrackTypes(userId: string): Promise<TrackType[]> {
     .eq("user_id", userId);
   if (error) throw error;
   const types = (data ?? []).map(mapDbTrackType);
-  if (types.length === 0) {
-    return seedDefaultTrackTypes(userId);
+
+  // One-time migration: remove legacy defaults if user has exactly those 3
+  const labels = types.map((t) => t.label).sort();
+  const legacyLabels = [...LEGACY_DEFAULT_LABELS].sort();
+  if (
+    types.length === 3 &&
+    labels[0] === legacyLabels[0] &&
+    labels[1] === legacyLabels[1] &&
+    labels[2] === legacyLabels[2]
+  ) {
+    for (const t of types) {
+      await supabase.from("track_types").delete().eq("id", t.id).eq("user_id", userId);
+    }
+    return [];
   }
+
   return types;
 }
 

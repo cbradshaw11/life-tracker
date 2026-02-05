@@ -34,12 +34,11 @@ export function EntryForm({
   const [selectedTrackTypeId, setSelectedTrackTypeId] = useState<string>("");
   const [value, setValue] = useState<string>("");
   const [note, setNote] = useState<string>("");
-  const [showCreateType, setShowCreateType] = useState(false);
+  const [showCreateType, setShowCreateType] = useState(trackTypes.length === 0);
   const [newLabel, setNewLabel] = useState("");
-  const [newValueType, setNewValueType] = useState<TrackType["valueType"]>("count");
   const [newColor, setNewColor] = useState("#3b82f6");
   const [newValueUnit, setNewValueUnit] = useState("");
-  const [newDurationUnit, setNewDurationUnit] = useState<"minutes" | "hours">("minutes");
+  const [showUnitInput, setShowUnitInput] = useState(false);
 
   useEffect(() => {
     if (editingEntry) {
@@ -54,8 +53,8 @@ export function EntryForm({
   const selectedTrackType = trackTypes.find((t) => t.id === selectedTrackTypeId);
   const showValueInput =
     selectedTrackType &&
-    (selectedTrackType.valueType === "count" ||
-      selectedTrackType.valueType === "duration");
+    selectedTrackType.valueType === "count" &&
+    !!selectedTrackType.valueUnit;
 
   const handleCreateType = async () => {
     if (!addTrackType || !newLabel.trim()) return;
@@ -65,21 +64,19 @@ export function EntryForm({
       id: slug,
       label: newLabel.trim(),
       color: newColor,
-      valueType: newValueType,
+      valueType: "count",
     };
-    if (newValueType === "count" && newValueUnit.trim()) {
+    if (newValueUnit.trim()) {
       trackType.valueUnit = newValueUnit.trim();
-    }
-    if (newValueType === "duration") {
-      trackType.durationUnit = newDurationUnit;
     }
     const created = await addTrackType(trackType);
     if (created) {
       setSelectedTrackTypeId(created.id);
+      setShowCreateType(false);
+      setShowUnitInput(false);
     }
     setNewLabel("");
     setNewValueUnit("");
-    setShowCreateType(false);
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -134,18 +131,24 @@ export function EntryForm({
             <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
               Activity
             </label>
-            <select
-              value={selectedTrackTypeId}
-              onChange={(e) => setSelectedTrackTypeId(e.target.value)}
-              className="w-full rounded-lg border border-gray-300 bg-white px-4 py-2 text-gray-900 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
-              required
-            >
-              {trackTypes.map((t) => (
-                <option key={t.id} value={t.id}>
-                  {t.label}
-                </option>
-              ))}
-            </select>
+            {trackTypes.length > 0 ? (
+              <select
+                value={selectedTrackTypeId}
+                onChange={(e) => setSelectedTrackTypeId(e.target.value)}
+                className="w-full rounded-lg border border-gray-300 bg-white px-4 py-2 text-gray-900 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+                required
+              >
+                {trackTypes.map((t) => (
+                  <option key={t.id} value={t.id}>
+                    {t.label}
+                  </option>
+                ))}
+              </select>
+            ) : (
+              <p className="rounded-lg border border-dashed border-gray-300 bg-gray-50 px-4 py-3 text-sm text-gray-600 dark:border-gray-600 dark:bg-gray-700/50 dark:text-gray-400">
+                Create your first activity type below to add entries.
+              </p>
+            )}
             {addTrackType && (
               <>
                 {showCreateType ? (
@@ -157,37 +160,22 @@ export function EntryForm({
                       placeholder="Label (e.g. Meditation)"
                       className="mb-2 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-700 dark:text-white"
                     />
-                    <select
-                      value={newValueType}
-                      onChange={(e) =>
-                        setNewValueType(e.target.value as TrackType["valueType"])
-                      }
-                      className="mb-2 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-700 dark:text-white"
-                    >
-                      <option value="count">Count</option>
-                      <option value="duration">Duration</option>
-                      <option value="boolean">Yes/No</option>
-                    </select>
-                    {newValueType === "count" && (
+                    {showUnitInput ? (
                       <input
                         type="text"
                         value={newValueUnit}
                         onChange={(e) => setNewValueUnit(e.target.value)}
-                        placeholder="Unit (e.g. cigarettes)"
+                        placeholder="Unit (e.g. cigarettes, glasses)"
                         className="mb-2 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-700 dark:text-white"
                       />
-                    )}
-                    {newValueType === "duration" && (
-                      <select
-                        value={newDurationUnit}
-                        onChange={(e) =>
-                          setNewDurationUnit(e.target.value as "minutes" | "hours")
-                        }
-                        className="mb-2 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => setShowUnitInput(true)}
+                        className="mb-2 text-sm text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300"
                       >
-                        <option value="minutes">Minutes</option>
-                        <option value="hours">Hours</option>
-                      </select>
+                        + Add optional unit
+                      </button>
                     )}
                     <div className="mb-2 flex gap-1">
                       {COLORS.map((c) => (
@@ -197,7 +185,7 @@ export function EntryForm({
                           onClick={() => setNewColor(c)}
                           className={`h-6 w-6 rounded-full border-2 transition-all ${
                             newColor === c
-                              ? "border-gray-900 ring-2 ring-offset-1 ring-gray-900 dark:border-white dark:ring-white"
+                              ? "border-gray-900 ring-1 ring-offset-0 ring-gray-900 dark:border-white dark:ring-white"
                               : "border-transparent"
                           }`}
                           style={{ backgroundColor: c }}
@@ -208,7 +196,10 @@ export function EntryForm({
                     <div className="flex gap-2">
                       <button
                         type="button"
-                        onClick={() => setShowCreateType(false)}
+                        onClick={() => {
+                          setShowCreateType(false);
+                          setShowUnitInput(false);
+                        }}
                         className="rounded px-3 py-1 text-sm text-gray-600 hover:bg-gray-200 dark:text-gray-400 dark:hover:bg-gray-600"
                       >
                         Cancel
@@ -244,16 +235,10 @@ export function EntryForm({
               <input
                 type="number"
                 min="0"
-                step={selectedTrackType.valueType === "duration" ? "1" : "1"}
+                step="1"
                 value={value}
                 onChange={(e) => setValue(e.target.value)}
-                placeholder={
-                  selectedTrackType.valueType === "duration"
-                    ? selectedTrackType.durationUnit === "hours"
-                      ? "e.g. 1.5"
-                      : "e.g. 45"
-                    : "e.g. 3"
-                }
+                placeholder="e.g. 3"
                 className="w-full rounded-lg border border-gray-300 bg-white px-4 py-2 text-gray-900 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
               />
             </div>
@@ -282,7 +267,8 @@ export function EntryForm({
             </button>
             <button
               type="submit"
-              className="flex-1 rounded-lg bg-blue-600 px-4 py-2 font-medium text-white hover:bg-blue-700 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+              disabled={!selectedTrackTypeId}
+              className="flex-1 rounded-lg bg-blue-600 px-4 py-2 font-medium text-white hover:bg-blue-700 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {editingEntry ? "Save" : "Add"}
             </button>
